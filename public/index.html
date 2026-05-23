@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eskimi DSP — Media Plan Builder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--purple:#8B5CF6;--blue:#3B82F6;--black:#1F2125;--white:#FFFFFF;--grey600:#9BA1AA;--grey300:#D2D6DC;--grey050:#F1F3F6;--ok:#75DAAA;--warn:#FFCF29;--bad:#FF6A6A;--dark-bg:#1F2937;--purple015:rgba(139,92,246,0.15);--purple012:rgba(139,92,246,0.12);--purple006:rgba(139,92,246,0.06);--purple040:rgba(139,92,246,0.4);--w004:rgba(255,255,255,0.04);--w006:rgba(255,255,255,0.06);--w008:rgba(255,255,255,0.08);--w010:rgba(255,255,255,0.1)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--black);color:var(--white);min-height:100vh}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--purple)!important;box-shadow:0 0 0 3px rgba(139,92,246,0.15)}
+input::placeholder,textarea::placeholder{color:var(--grey600)}
+select option{background:var(--dark-bg);color:var(--white)}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(139,92,246,0.2);border-radius:3px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+
+.header{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-bottom:1px solid var(--w006);background:rgba(31,33,37,0.97);backdrop-filter:blur(12px);position:sticky;top:0;z-index:10;flex-wrap:wrap;gap:8px}
+.logo-mark{display:flex;align-items:center;gap:4px}
+.logo-mark svg{margin-right:6px}
+.logo-text{font-size:20px;font-weight:700;color:var(--purple);font-family:'Space Mono',monospace;letter-spacing:-0.5px}
+.logo-sub{font-size:9px;color:var(--grey600);letter-spacing:2.5px;text-transform:uppercase;margin-left:8px;padding:2px 6px;border:1px solid var(--w008);border-radius:4px}
+.campaign-label{font-size:13px;color:var(--grey600);font-family:'Space Mono',monospace}
+
+.step-nav{display:flex;gap:6px;padding:12px 24px;overflow-x:auto;border-bottom:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.01)}
+.step-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;border:1px solid var(--w006);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;flex:none;background:transparent;color:var(--grey600);font-size:12px;font-weight:500}
+.step-btn.active{background:var(--purple012);border-color:var(--purple);color:var(--purple)}
+.step-btn.done{border-color:var(--purple040);color:rgba(139,92,246,0.7)}
+.step-btn .icon{font-size:16px}
+
+.content{flex:1;padding:24px 24px 120px;max-width:720px;margin:0 auto;width:100%}
+.step-panel{display:none;animation:fadeUp 0.35s ease forwards}
+.step-panel.active{display:block}
+h2.h2{font-size:22px;font-weight:700;color:var(--white);margin-bottom:4px}
+.subtitle{font-size:13px;color:var(--grey600);line-height:1.6;margin-bottom:24px}
+.field{margin-bottom:16px}
+.label{font-size:12px;font-weight:600;color:var(--grey300);margin-bottom:6px;display:block;letter-spacing:0.3px}
+.hint{font-size:11px;color:var(--grey600);margin-top:2px;line-height:1.5}
+.input{width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--w010);background:var(--w004);color:var(--white);font-size:14px;font-family:'DM Sans',sans-serif;transition:border-color 0.2s,box-shadow 0.2s}
+textarea.input{resize:vertical;min-height:64px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+.chip{padding:8px 16px;border-radius:20px;border:1px solid var(--w008);cursor:pointer;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;transition:all 0.15s;background:var(--w004);color:var(--grey600);display:inline-block}
+.chip.active{background:var(--purple015);color:var(--purple);border-color:var(--purple040)}
+.chip.solid-active{background:var(--purple);color:var(--white);border-color:var(--purple)}
+.chip-group{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+
+/* Country Picker */
+.country-picker{border:1px solid rgba(139,92,246,0.2);border-radius:12px;overflow:hidden;background:var(--dark-bg)}
+.cp-tags{padding:10px 14px;border-bottom:1px solid var(--w006);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.cp-tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px 4px 12px;border-radius:14px;background:var(--purple015);color:var(--purple);font-size:12px;font-weight:500}
+.cp-tag button{background:none;border:none;color:var(--purple);cursor:pointer;font-size:15px;line-height:1;padding:0 0 0 2px;opacity:0.6}
+.cp-clear{background:none;border:none;color:var(--grey600);cursor:pointer;font-size:11px;padding:4px 8px;text-decoration:underline;text-underline-offset:2px}
+.cp-search{padding:8px 14px;border-bottom:1px solid var(--w006)}
+.cp-search input{width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--w008);background:var(--w004);color:var(--white);font-size:13px;font-family:'DM Sans',sans-serif}
+.cp-list{max-height:260px;overflow-y:auto;padding:4px 0}
+.cp-region-btn{display:flex;align-items:center;justify-content:space-between;width:100%;padding:9px 14px;background:none;border:none;cursor:pointer;color:var(--grey300);font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;transition:background 0.15s}
+.cp-region-btn:hover{background:rgba(255,255,255,0.02)}
+.cp-count{font-size:10px;background:var(--purple015);color:var(--purple);padding:1px 6px;border-radius:8px;font-weight:700;margin-left:8px}
+.cp-select-all{background:none;border:1px solid rgba(139,92,246,0.3);color:var(--purple);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:10px;font-weight:600;font-family:'DM Sans',sans-serif}
+.cp-country-btn{display:flex;align-items:center;gap:10px;width:100%;padding:7px 14px 7px 28px;background:none;border:none;cursor:pointer;color:var(--grey600);font-size:12px;font-family:'DM Sans',sans-serif;text-align:left;transition:color 0.15s}
+.cp-country-btn.selected{color:var(--purple)}
+.cp-countries{border-top:1px solid rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.04);background:rgba(0,0,0,0.15);display:none}
+.cp-countries.expanded{display:block}
+.cp-check{width:16px;height:16px;border-radius:3px;border:2px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--white);flex-shrink:0;transition:all 0.15s}
+.cp-check.checked{background:var(--purple);border-color:var(--purple)}
+.cp-footer{padding:8px 14px;border-top:1px solid var(--w006);font-size:11px;color:var(--grey600);display:flex;justify-content:space-between}
+
+/* KPI Card */
+.kpi-card{background:rgba(255,255,255,0.02);border:1px solid var(--w006);border-radius:10px;padding:16px;animation:fadeUp 0.35s ease forwards}
+.kpi-badge{font-size:11px;padding:2px 8px;border-radius:4px;font-family:'Space Mono',monospace;font-weight:600}
+.kpi-badge.primary{color:var(--purple);background:rgba(139,92,246,0.1)}
+.kpi-badge.secondary{color:var(--blue);background:rgba(59,130,246,0.1)}
+.kpi-badge.optional{color:var(--grey600);background:var(--w004)}
+
+.info-box{background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.15);border-radius:10px;padding:14px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start}
+.info-box .text{font-size:13px;color:var(--grey600);line-height:1.6}
+.info-box strong{color:var(--purple)}
+
+.pacing-box{background:var(--purple006);border:1px solid rgba(139,92,246,0.2);border-radius:10px;padding:16px;margin-top:8px;display:none}
+.pacing-label{font-size:12px;color:var(--purple);font-weight:600;margin-bottom:8px;font-family:'Space Mono',monospace;letter-spacing:1px}
+.pacing-grid{display:flex;gap:24px;flex-wrap:wrap}
+.pacing-item .val{font-size:16px;font-weight:600;color:var(--white)}
+.pacing-item .lbl{font-size:11px;color:var(--grey600)}
+
+.toggle{width:48px;height:26px;border-radius:13px;border:none;cursor:pointer;position:relative;transition:background 0.2s;background:var(--w010)}
+.toggle.on{background:var(--purple)}
+.toggle .knob{width:20px;height:20px;border-radius:10px;background:var(--white);position:absolute;top:3px;left:3px;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3)}
+.toggle.on .knob{left:25px}
+
+/* Review Step */
+.review-section{margin-bottom:20px;animation:slideIn 0.3s ease forwards}
+.review-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.review-header h3{font-size:14px;font-weight:600;color:var(--purple);font-family:'Space Mono',monospace;letter-spacing:0.5px}
+.review-edit{background:none;border:1px solid var(--purple040);color:var(--purple);border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;transition:all 0.15s}
+.review-edit:hover{background:var(--purple015)}
+.review-table{width:100%;border-collapse:separate;border-spacing:0;border-radius:10px;overflow:hidden;border:1px solid var(--w006)}
+.review-table tr:not(:last-child) td{border-bottom:1px solid var(--w006)}
+.review-table td{padding:10px 14px;font-size:13px;vertical-align:top}
+.review-table td:first-child{font-weight:600;width:35%;color:var(--grey300);background:rgba(255,255,255,0.02)}
+.review-table td:last-child{color:var(--white)}
+.review-tags{display:flex;flex-wrap:wrap;gap:4px}
+.review-tags span{padding:3px 10px;border-radius:10px;background:var(--purple015);color:var(--purple);font-size:11px;font-weight:500}
+.review-empty{color:var(--grey600);font-style:italic}
+
+.expect-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:12px}
+.expect-card{background:rgba(255,255,255,0.03);border:1px solid var(--w006);border-radius:10px;padding:14px}
+.expect-card .ec-icon{font-size:20px;margin-bottom:6px}
+.expect-card .ec-title{font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px}
+.expect-card .ec-desc{font-size:11px;color:var(--grey600);line-height:1.5}
+
+.dl-section{margin-top:28px;padding:24px;border-radius:14px;background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(59,130,246,0.06));border:1px solid rgba(139,92,246,0.2);text-align:center}
+.dl-section h3{font-size:16px;font-weight:700;color:var(--white);margin-bottom:6px}
+.dl-section p{font-size:12px;color:var(--grey600);margin-bottom:16px}
+.dl-btn{padding:14px 32px;border-radius:10px;border:none;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--purple),var(--blue));color:var(--white);box-shadow:0 4px 20px rgba(139,92,246,0.3)}
+.dl-btn:hover{box-shadow:0 6px 28px rgba(139,92,246,0.5);transform:translateY(-2px)}
+.dl-btn:active{transform:translateY(0)}
+.dl-btn.generating{pointer-events:none;opacity:0.7;background:linear-gradient(90deg,var(--purple),var(--blue),var(--purple));background-size:200% 100%;animation:shimmer 1.5s infinite}
+.dl-formats{display:flex;justify-content:center;gap:8px;margin-top:12px}
+.dl-formats button{background:var(--w004);border:1px solid var(--w008);color:var(--grey300);border-radius:6px;padding:6px 14px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;transition:all 0.15s}
+.dl-formats button:hover{border-color:var(--purple040);color:var(--purple)}
+
+.footer{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:12px 24px;border-top:1px solid var(--w006);background:rgba(31,33,37,0.97);backdrop-filter:blur(12px);z-index:10}
+.nav-btn{padding:10px 20px;border-radius:8px;border:1px solid var(--w010);background:transparent;color:var(--grey600);font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s}
+.nav-btn.primary{background:var(--purple);color:var(--white);border-color:var(--purple)}
+.nav-btn:disabled{opacity:0.3;cursor:default}
+.step-counter{font-size:12px;color:var(--grey600);font-family:'Space Mono',monospace}
+
+@media(max-width:640px){.grid2{grid-template-columns:1fr}.expect-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div style="display:flex;align-items:center;gap:4px">
+    <div class="logo-mark">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="7" fill="#8B5CF6"/><path d="M7 10h14M7 14h10M7 18h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </div>
+    <span class="logo-text">ESKIMI</span>
+    <span class="logo-sub">DSP</span>
+    <div style="width:1px;height:24px;background:var(--w010);margin:0 8px"></div>
+    <span style="font-size:14px;color:var(--grey600)">Media Plan Builder</span>
+  </div>
+  <div class="campaign-label" id="headerCampaign"></div>
+</div>
+
+<div class="step-nav" id="stepNav"></div>
+
+<div class="content">
+  <!-- STEP 0: Campaign Setup -->
+  <div class="step-panel active" id="step0">
+    <h2 class="h2">Campaign Setup</h2>
+    <p class="subtitle">Define your campaign fundamentals. This information shapes your entire media plan.</p>
+    <div class="grid2">
+      <div class="field"><label class="label">Campaign Name *</label><input class="input" id="campaignName" placeholder="e.g. Q3 Awareness Campaign"></div>
+      <div class="field"><label class="label">Brand / Advertiser</label><input class="input" id="brand" placeholder="e.g. Acme Corp"></div>
+    </div>
+    <div class="field"><label class="label">Campaign Objective *</label><p class="hint">Your objective determines the KPI framework and optimisation strategy Eskimi will apply.</p><div class="chip-group" id="objectiveChips"></div></div>
+    <div class="field"><label class="label">Ad Formats</label><p class="hint">Select all formats you want to activate through Eskimi.</p><div class="chip-group" id="formatChips"></div></div>
+    <div class="field"><label class="label">Landing Page URL</label><input class="input" id="landingPage" placeholder="https://..."></div>
+  </div>
+
+  <!-- STEP 1: Audience -->
+  <div class="step-panel" id="step1">
+    <h2 class="h2">Audience & Targeting</h2>
+    <p class="subtitle">Define who you want to reach. Eskimi's targeting engine uses this to build optimised audience segments.</p>
+    <div class="field"><label class="label">Target Countries *</label><p class="hint">Select one or more countries. Use region buttons to quickly add entire regions, or search for specific markets.</p><div style="margin-top:8px" id="countryPicker"></div></div>
+    <div class="grid2">
+      <div class="field"><label class="label">Age Range</label><select class="input" id="ageRange"><option value="18-24">18–24</option><option value="18-34">18–34</option><option value="25-44">25–44</option><option value="25-54" selected>25–54</option><option value="35-65+">35–65+</option><option value="18-54">18–54 (Broad)</option><option value="all">All Ages</option></select></div>
+      <div class="field"><label class="label">Gender</label><div class="chip-group" id="genderChips" style="gap:8px"></div></div>
+    </div>
+    <div class="field"><label class="label">Language</label><input class="input" id="language" placeholder="e.g. English, French"></div>
+    <div class="field"><label class="label">Audience Interests</label><div class="chip-group" id="interestChips"></div></div>
+    <div class="field"><label class="label">Device Targeting</label><div class="chip-group" id="deviceChips"></div></div>
+    <div class="field" style="background:rgba(255,255,255,0.02);border:1px solid var(--w006);border-radius:10px;padding:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div><label class="label" style="margin-bottom:2px">Custom / 1st Party Audience</label><p class="hint">Upload your own audience segments or CRM data to Eskimi</p></div>
+        <button class="toggle" id="customAudToggle" onclick="toggleCustomAud()"><div class="knob"></div></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Budget -->
+  <div class="step-panel" id="step2">
+    <h2 class="h2">Budget & Schedule</h2>
+    <p class="subtitle">Set your investment and campaign flight dates. Eskimi optimises pacing automatically.</p>
+    <div class="grid2">
+      <div class="field"><label class="label">Total Budget *</label><div style="display:flex;gap:8px"><select class="input" id="currency" style="width:90px;flex:none"></select><input class="input" id="budget" placeholder="e.g. 50,000" oninput="updatePacing()"></div></div>
+      <div class="field"><label class="label">Budget Type</label><div class="chip-group" id="budgetTypeChips" style="gap:8px"></div></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label class="label">Start Date *</label><input class="input" type="date" id="startDate" onchange="updatePacing()"></div>
+      <div class="field"><label class="label">End Date *</label><input class="input" type="date" id="endDate" onchange="updatePacing()"></div>
+    </div>
+    <div class="field"><label class="label">Budget Split by Market</label><textarea class="input" id="marketSplit" placeholder="e.g. Nigeria 40%, Kenya 30%, South Africa 30%"></textarea></div>
+    <div class="pacing-box" id="pacingBox"><div class="pacing-label">ESTIMATED PACING</div><div class="pacing-grid" id="pacingGrid"></div></div>
+  </div>
+
+  <!-- STEP 3: KPIs -->
+  <div class="step-panel" id="step3">
+    <h2 class="h2">KPI Targets</h2>
+    <p class="subtitle">Set your expected performance targets. These KPIs are aligned to your <strong id="kpiObjLabel" style="color:var(--purple)">selected</strong> objective and will be tracked in real time on Eskimi's dashboard.</p>
+    <div class="info-box"><span style="font-size:18px">💡</span><div class="text"><strong>How KPI tracking works on Eskimi:</strong> Once your campaign goes live, these targets are loaded into Eskimi's real-time engine. The platform monitors performance every 60 seconds and auto-optimises delivery to hit your goals.</div></div>
+    <div id="kpiFields"></div>
+  </div>
+
+  <!-- STEP 4: Review & Download -->
+  <div class="step-panel" id="step4">
+    <h2 class="h2">Review & Download</h2>
+    <p class="subtitle">Review your media plan below. You can edit any section before downloading.</p>
+    <div id="reviewContent"></div>
+
+    <div class="review-section" style="animation-delay:0.25s">
+      <div class="review-header"><h3>WHAT TO EXPECT FROM ESKIMI</h3></div>
+      <p style="font-size:12px;color:var(--grey600);margin-bottom:12px">Once your campaign goes live, Eskimi provides multiple ways to receive performance data in real time:</p>
+      <div class="expect-grid">
+        <div class="expect-card"><div class="ec-icon">📡</div><div class="ec-title">Eskimi API</div><div class="ec-desc">Programmatic real-time data via REST API. Poll every 60 seconds for live metrics and KPI performance.</div></div>
+        <div class="expect-card"><div class="ec-icon">📊</div><div class="ec-title">Live Dashboard</div><div class="ec-desc">Eskimi's built-in UI dashboard with auto-refreshing KPI widgets, pacing charts, and audience insights.</div></div>
+        <div class="expect-card"><div class="ec-icon">🔔</div><div class="ec-title">Automated Alerts</div><div class="ec-desc">Configure Slack, email, or webhook alerts when KPIs deviate from target thresholds.</div></div>
+        <div class="expect-card"><div class="ec-icon">📄</div><div class="ec-title">Scheduled Reports</div><div class="ec-desc">Daily, weekly, or custom CSV/PDF reports delivered directly to your inbox on a schedule.</div></div>
+      </div>
+    </div>
+
+    <div class="dl-section">
+      <h3>Your media plan is ready</h3>
+      <p>Download a formatted PDF to share with your team or send to Eskimi for activation.</p>
+      <button class="dl-btn" id="dlBtn" onclick="downloadPDF()">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 17h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Download Media Plan (PDF)
+      </button>
+      <div class="dl-formats"><button onclick="printPlan()">🖨 Print Version</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <button class="nav-btn" id="backBtn" onclick="goBack()" disabled>← Back</button>
+  <div class="step-counter" id="stepCounter">1 / 5</div>
+  <button class="nav-btn primary" id="nextBtn" onclick="goNext()">Continue →</button>
+</div>
+
+<script>
+const OBJECTIVES=["Awareness","Traffic","Video Views"];
+const FORMATS=["Display Banner","Video (Pre-roll)","Video (Mid-roll)","Native","Rich Media","CTV/OTT","Audio","DOOH"];
+const INTERESTS=["Technology","Finance","Sports","Fashion","Travel","Food & Drink","Health","Entertainment","Automotive","Education","Real Estate","Gaming"];
+const DEVICES=["Mobile","Desktop","Tablet","CTV","All Devices"];
+const CURRENCIES=["USD","EUR","GBP","NGN","KES","ZAR","AED","SAR"];
+const GENDERS=[{v:"all",l:"All"},{v:"male",l:"Male"},{v:"female",l:"Female"}];
+const BUDGET_TYPES=[{v:"fixed",l:"Fixed"},{v:"flexible",l:"Flexible"},{v:"tbc",l:"TBC"}];
+const REGIONS={"Africa":["Nigeria","Kenya","South Africa","Ghana","Tanzania","Uganda","Ethiopia","Rwanda","Ivory Coast","Senegal","Cameroon","Morocco","Egypt","Algeria","Tunisia","Mozambique","Angola","DR Congo","Zambia","Zimbabwe"],"Middle East":["UAE","Saudi Arabia","Qatar","Bahrain","Kuwait","Oman","Jordan","Lebanon","Iraq"],"Europe":["United Kingdom","Germany","France","Netherlands","Spain","Italy","Poland","Sweden","Belgium","Switzerland","Austria","Portugal","Denmark","Norway","Finland","Czech Republic","Romania","Ireland","Greece","Turkey"],"Americas":["United States","Canada","Brazil","Mexico","Colombia","Argentina","Chile","Peru"],"Asia-Pacific":["India","Indonesia","Philippines","Vietnam","Thailand","Malaysia","Singapore","Australia","New Zealand","Japan","South Korea","Pakistan","Bangladesh"]};
+const ALL_COUNTRIES=Object.values(REGIONS).flat();
+const KPI_MAP={"Awareness":[{key:"impressions",label:"Impressions",unit:"",ph:"e.g. 5,000,000",bm:"Varies by budget"},{key:"reach",label:"Unique Reach",unit:"",ph:"e.g. 2,000,000",bm:"~40% of impressions"},{key:"viewability",label:"Viewability Rate",unit:"%",ph:"e.g. 70",bm:"Industry avg: 65-70%"},{key:"frequency",label:"Avg Frequency",unit:"x",ph:"e.g. 3",bm:"Recommended: 3-5x"},{key:"cpm",label:"Target CPM",unit:"$",ph:"e.g. 5.00",bm:"Varies by market"}],"Traffic":[{key:"clicks",label:"Total Clicks",unit:"",ph:"e.g. 100,000",bm:"Varies by budget & CTR"},{key:"ctr",label:"Click-Through Rate",unit:"%",ph:"e.g. 0.15",bm:"Industry avg: 0.10-0.20%"},{key:"cpc",label:"Cost Per Click",unit:"$",ph:"e.g. 0.50",bm:"Industry avg: $0.30-$1.50"},{key:"lpv",label:"Landing Page Visits",unit:"",ph:"e.g. 50,000",bm:"Depends on CTR & bounce rate"},{key:"bounceRate",label:"Bounce Rate",unit:"%",ph:"e.g. 40",bm:"Industry avg: 35-55%"}],"Video Views":[{key:"views",label:"Total Video Views",unit:"",ph:"e.g. 1,000,000",bm:"Varies by budget"},{key:"vcr",label:"Video Completion Rate",unit:"%",ph:"e.g. 75",bm:"Industry avg: 70-80%"},{key:"cpv",label:"Cost Per View",unit:"$",ph:"e.g. 0.02",bm:"Industry avg: $0.01-$0.05"},{key:"viewability",label:"Viewability Rate",unit:"%",ph:"e.g. 70",bm:"Industry avg: 65-70%"},{key:"impressions",label:"Video Impressions",unit:"",ph:"e.g. 3,000,000",bm:"Views / VCR"}]};
+const STEPS=[{label:"Campaign Setup",icon:"📋"},{label:"Audience & Targeting",icon:"🎯"},{label:"Budget & Schedule",icon:"💰"},{label:"KPI Targets",icon:"📊"},{label:"Review & Download",icon:"✅"}];
+
+let currentStep=0, expandedRegion=null;
+let S={objective:"",formats:[],gender:"all",budgetType:"fixed",countries:[],interests:[],devices:[],customAudience:false,kpis:{}};
+
+function init(){renderStepNav();renderObjectiveChips();renderFormatChips();renderGenderChips();renderInterestChips();renderDeviceChips();renderCurrencySelect();renderBudgetTypeChips();renderCountryPicker();renderKPIFields();updateFooter();document.getElementById('campaignName').addEventListener('input',e=>{document.getElementById('headerCampaign').textContent=e.target.value})}
+
+function renderStepNav(){document.getElementById('stepNav').innerHTML=STEPS.map((s,i)=>{let c='step-btn';if(i===currentStep)c+=' active';else if(i<currentStep)c+=' done';return`<button class="${c}" onclick="goToStep(${i})"><span class="icon">${i<currentStep?'✓':s.icon}</span><span style="white-space:nowrap">${s.label}</span></button>`}).join('')}
+
+function goToStep(n){document.getElementById('step'+currentStep).classList.remove('active');currentStep=n;document.getElementById('step'+currentStep).classList.add('active');renderStepNav();updateFooter();if(n===3)renderKPIFields();if(n===4)renderReview();window.scrollTo({top:0,behavior:'smooth'})}
+function goNext(){if(currentStep<4)goToStep(currentStep+1)}
+function goBack(){if(currentStep>0)goToStep(currentStep-1)}
+function updateFooter(){document.getElementById('backBtn').disabled=currentStep===0;document.getElementById('stepCounter').textContent=`${currentStep+1} / ${STEPS.length}`;const b=document.getElementById('nextBtn');if(currentStep===4){b.style.display='none'}else{b.style.display='';b.textContent=currentStep===3?'Review & Download →':'Continue →'}}
+
+// Chips
+function renderChipGroup(id,items,sel,fn,solid){const c=document.getElementById(id);c.innerHTML=items.map(item=>{const v=typeof item==='object'?item.v:item,l=typeof item==='object'?item.l:item,a=Array.isArray(sel)?sel.includes(v):sel===v;let cls='chip';if(solid&&a)cls+=' solid-active';else if(a)cls+=' active';return`<button class="${cls}" onclick="${fn}('${v.replace(/'/g,"\\'")}')">${l}</button>`}).join('')}
+function renderObjectiveChips(){renderChipGroup('objectiveChips',OBJECTIVES,S.objective,'setObjective',true)}
+function setObjective(v){S.objective=v;renderObjectiveChips();renderKPIFields()}
+function renderFormatChips(){renderChipGroup('formatChips',FORMATS,S.formats,'toggleFormat')}
+function toggleFormat(v){toggleArr('formats',v);renderFormatChips()}
+function renderGenderChips(){renderChipGroup('genderChips',GENDERS,S.gender,'setGender')}
+function setGender(v){S.gender=v;renderGenderChips()}
+function renderInterestChips(){renderChipGroup('interestChips',INTERESTS,S.interests,'toggleInterest')}
+function toggleInterest(v){toggleArr('interests',v);renderInterestChips()}
+function renderDeviceChips(){renderChipGroup('deviceChips',DEVICES,S.devices,'toggleDevice')}
+function toggleDevice(v){toggleArr('devices',v);renderDeviceChips()}
+function renderBudgetTypeChips(){document.getElementById('budgetTypeChips').innerHTML=BUDGET_TYPES.map(t=>`<button class="chip${S.budgetType===t.v?' active':''}" style="flex:1;text-align:center" onclick="setBudgetType('${t.v}')">${t.l}</button>`).join('')}
+function setBudgetType(v){S.budgetType=v;renderBudgetTypeChips()}
+function toggleArr(f,v){const i=S[f].indexOf(v);if(i===-1)S[f].push(v);else S[f].splice(i,1)}
+function renderCurrencySelect(){document.getElementById('currency').innerHTML=CURRENCIES.map(c=>`<option value="${c}">${c}</option>`).join('')}
+function toggleCustomAud(){S.customAudience=!S.customAudience;document.getElementById('customAudToggle').classList.toggle('on',S.customAudience)}
+
+function updatePacing(){const b=parseFloat((document.getElementById('budget').value||'').replace(/,/g,''))||0,s=document.getElementById('startDate').value,e=document.getElementById('endDate').value,box=document.getElementById('pacingBox');if(b&&s&&e){const d=Math.max(1,Math.ceil((new Date(e)-new Date(s))/864e5)),cur=document.getElementById('currency').value;document.getElementById('pacingGrid').innerHTML=[{l:'Duration',v:d+' days'},{l:'Daily Budget',v:cur+' '+(b/d).toFixed(2)},{l:'Weekly Budget',v:cur+' '+(b/d*7).toFixed(2)}].map(x=>`<div class="pacing-item"><div class="lbl">${x.l}</div><div class="val">${x.v}</div></div>`).join('');box.style.display='block'}else{box.style.display='none'}}
+
+// Country Picker
+function renderCountryPicker(){const el=document.getElementById('countryPicker');let h='<div class="country-picker">';if(S.countries.length){h+='<div class="cp-tags">';S.countries.forEach(c=>{h+=`<span class="cp-tag">${c}<button onclick="removeCountry('${esc(c)}')">&times;</button></span>`});h+='<button class="cp-clear" onclick="clearCountries()">Clear all</button></div>'}
+h+='<div class="cp-search"><input id="cpSearch" placeholder="Search countries..." oninput="filterCountries()"></div>';
+h+='<div class="cp-list" id="cpList">';
+Object.entries(REGIONS).forEach(([r,cs])=>{const cnt=cs.filter(c=>S.countries.includes(c)).length,all=cnt===cs.length;h+=`<button class="cp-region-btn" onclick="toggleRegionExpand('${r}')"><span>${r}${cnt?`<span class="cp-count">${cnt}</span>`:''}</span><span style="display:flex;align-items:center;gap:10px"><button class="cp-select-all" onclick="event.stopPropagation();toggleRegionAll('${r}')">${all?'Deselect all':'Select all'}</button><span style="font-size:11px;transition:transform 0.2s;transform:${expandedRegion===r?'rotate(180deg)':'rotate(0)'};color:var(--grey600)">▾</span></span></button>`;
+h+=`<div class="cp-countries${expandedRegion===r?' expanded':''}">`;
+cs.forEach(c=>{const s=S.countries.includes(c);h+=`<button class="cp-country-btn${s?' selected':''}" onclick="toggleCountry('${esc(c)}')"><span class="cp-check${s?' checked':''}">${s?'✓':''}</span>${c}</button>`});h+='</div>'});
+h+='</div><div class="cp-list" id="cpSearchResults" style="display:none"></div>';
+h+=`<div class="cp-footer"><span>${S.countries.length} ${S.countries.length===1?'country':'countries'} selected</span><span>${ALL_COUNTRIES.length} available</span></div></div>`;
+el.innerHTML=h}
+function esc(s){return s.replace(/'/g,"\\'")}
+function toggleCountry(c){const i=S.countries.indexOf(c);if(i===-1)S.countries.push(c);else S.countries.splice(i,1);renderCountryPicker()}
+function removeCountry(c){toggleCountry(c)}
+function clearCountries(){S.countries=[];renderCountryPicker()}
+function toggleRegionExpand(r){expandedRegion=expandedRegion===r?null:r;renderCountryPicker()}
+function toggleRegionAll(r){const cs=REGIONS[r];if(cs.every(c=>S.countries.includes(c)))S.countries=S.countries.filter(c=>!cs.includes(c));else cs.forEach(c=>{if(!S.countries.includes(c))S.countries.push(c)});renderCountryPicker()}
+function filterCountries(){const q=document.getElementById('cpSearch').value.toLowerCase(),list=document.getElementById('cpList'),res=document.getElementById('cpSearchResults');if(!q){list.style.display='block';res.style.display='none';return}list.style.display='none';res.style.display='block';const m=ALL_COUNTRIES.filter(c=>c.toLowerCase().includes(q));if(!m.length){res.innerHTML=`<div style="padding:20px 14px;text-align:center;color:var(--grey600);font-size:13px">No countries match "${q}"</div>`;return}res.innerHTML=m.map(c=>{const s=S.countries.includes(c);return`<button class="cp-country-btn${s?' selected':''}" onclick="toggleCountry('${esc(c)}')"><span class="cp-check${s?' checked':''}">${s?'✓':''}</span>${c}</button>`}).join('')}
+
+// KPIs
+function renderKPIFields(){const obj=S.objective||'Awareness';document.getElementById('kpiObjLabel').textContent=obj;const kpis=KPI_MAP[obj]||KPI_MAP['Awareness'];document.getElementById('kpiFields').innerHTML=kpis.map((k,i)=>{const bc=i===0?'primary':i===1?'secondary':'optional',bt=i===0?'PRIMARY':i===1?'SECONDARY':'OPTIONAL',v=S.kpis[k.key]||'';return`<div class="kpi-card" style="margin-bottom:12px;animation-delay:${i*0.06}s"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px"><div><div style="font-size:14px;font-weight:600;color:var(--white)">${k.label}</div><div style="font-size:11px;color:var(--grey600);margin-top:2px">Benchmark: ${k.bm}</div></div><div class="kpi-badge ${bc}">${bt}</div></div><div style="display:flex;align-items:center;gap:8px">${k.unit==='$'?'<span style="color:var(--grey600);font-size:14px">$</span>':''}<input class="input" style="flex:1;margin:0" value="${v}" placeholder="${k.ph}" oninput="S.kpis['${k.key}']=this.value">${k.unit&&k.unit!=='$'?`<span style="color:var(--grey600);font-size:13px;min-width:20px">${k.unit}</span>`:''}</div></div>`}).join('')}
+
+// Review
+function renderReview(){const cn=gv('campaignName')||'—',brand=gv('brand')||'—',obj=S.objective||'—',formats=S.formats.length?S.formats:'—',lp=gv('landingPage')||'—';
+const countries=S.countries,age=gv('ageRange')||'—',gender=S.gender==='all'?'All':cap(S.gender),lang=gv('language')||'—',interests=S.interests,devices=S.devices,caud=S.customAudience?'Yes':'No';
+const budget=gv('budget')||'—',cur=gv('currency'),bt=cap(S.budgetType),sd=gv('startDate')||'—',ed=gv('endDate')||'—',ms=gv('marketSplit')||'—';
+const kpis=KPI_MAP[S.objective]||KPI_MAP['Awareness'];
+
+let h='';
+// Section 1
+h+=reviewSection('01 — CAMPAIGN SETUP',0,[['Campaign Name',cn],['Brand / Advertiser',brand],['Objective',obj],['Ad Formats',tags(formats)],['Landing Page',lp]]);
+// Section 2
+h+=reviewSection('02 — AUDIENCE & TARGETING',1,[['Target Countries',tags(countries)],['Age Range',age],['Gender',gender],['Language',lang],['Interests',tags(interests)],['Devices',tags(devices)],['Custom / 1P Data',caud]]);
+// Section 3
+h+=reviewSection('03 — BUDGET & SCHEDULE',2,[['Total Budget',cur+' '+budget],['Budget Type',bt],['Start Date',fmtDate(sd)],['End Date',fmtDate(ed)],['Market Split',ms]]);
+// Section 4
+const kpiRows=kpis.map((k,i)=>{const v=S.kpis[k.key]||'';const p=i===0?'Primary':i===1?'Secondary':'Optional';return[k.label+' ('+p+')',v?(k.unit==='$'?'$':'')+v+(k.unit&&k.unit!=='$'?' '+k.unit:''):'<span class="review-empty">Not set</span>']});
+h+=reviewSection('04 — KPI TARGETS',3,kpiRows);
+
+document.getElementById('reviewContent').innerHTML=h}
+
+function reviewSection(title,step,rows){let h=`<div class="review-section" style="animation-delay:${step*0.06}s"><div class="review-header"><h3>${title}</h3><button class="review-edit" onclick="goToStep(${step})">Edit</button></div><table class="review-table">`;rows.forEach(([l,v])=>{h+=`<tr><td>${l}</td><td>${v||'<span class="review-empty">—</span>'}</td></tr>`});h+='</table></div>';return h}
+function tags(arr){if(!arr||arr==='—'||!arr.length)return'<span class="review-empty">—</span>';return'<div class="review-tags">'+arr.map(t=>`<span>${t}</span>`).join('')+'</div>'}
+function gv(id){return document.getElementById(id)?.value||''}
+function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):''}
+function fmtDate(d){if(!d||d==='—')return'—';try{return new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}catch(e){return d}}
+
+// ─── PDF GENERATION ───
+function downloadPDF(){
+  const btn=document.getElementById('dlBtn');
+  btn.classList.add('generating');btn.innerHTML='<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2" stroke-dasharray="30" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 10 10" to="360 10 10" dur="0.8s" repeatCount="indefinite"/></circle></svg> Generating PDF...';
+
+  setTimeout(()=>{
+    try{
+      const{jsPDF}=window.jspdf;
+      const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+      const W=210,M=18,CW=W-M*2;
+      const purple=[139,92,246],blue=[59,130,246],dark=[31,33,37],grey=[155,161,170],white=[255,255,255];
+
+      // Helper
+      let Y=18;
+      function addY(n){Y+=n;if(Y>270){doc.addPage();Y=18}}
+
+      // Header bar
+      doc.setFillColor(...dark);doc.rect(0,0,W,38,'F');
+      doc.setFillColor(...purple);doc.roundedRect(M,10,8,8,2,2,'F');
+      doc.setTextColor(...white);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('E',M+2.8,15.6);
+      doc.setFontSize(16);doc.setTextColor(...purple);doc.text('ESKIMI',M+12,16.5);
+      doc.setFontSize(7);doc.setTextColor(...grey);doc.text('DSP',M+44,16.5);
+      doc.setFontSize(8);doc.setTextColor(...grey);doc.text('Media Plan',W-M,16.5,{align:'right'});
+
+      // Title
+      const cn=gv('campaignName')||'Untitled Campaign';
+      doc.setFontSize(20);doc.setTextColor(...white);doc.text(cn,M,30);
+      const now=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+      const brand=gv('brand');
+      doc.setFontSize(8);doc.setTextColor(...grey);doc.text((brand?brand+' · ':'')+(S.objective||'—')+' · '+now,M,35);
+
+      Y=46;
+
+      // Section header
+      function sectionHead(num,title){addY(10);doc.setFillColor(248,247,255);doc.roundedRect(M,Y-4,CW,9,1.5,1.5,'F');doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(...purple);doc.text(num+' — '+title,M+4,Y+2);addY(10)}
+
+      // Table
+      function addTable(rows){doc.autoTable({startY:Y,margin:{left:M,right:M},head:[],body:rows,theme:'plain',styles:{fontSize:8.5,cellPadding:{top:3,bottom:3,left:5,right:5},lineWidth:0.2,lineColor:[230,232,236],textColor:[40,40,40],font:'helvetica'},columnStyles:{0:{fontStyle:'bold',cellWidth:52,fillColor:[249,250,251],textColor:[80,80,80]},1:{cellWidth:CW-52}},didParseCell:function(data){if(data.column.index===1&&typeof data.cell.raw==='string'&&data.cell.raw.startsWith('TAGS:')){data.cell.text=[data.cell.raw.replace('TAGS:','')]}}});Y=doc.lastAutoTable.finalY+4}
+
+      function tv(arr){return arr&&arr.length?arr.join(', '):'—'}
+
+      // S1
+      sectionHead('01','CAMPAIGN SETUP');
+      addTable([['Campaign Name',cn],['Brand / Advertiser',brand||'—'],['Objective',S.objective||'—'],['Ad Formats',tv(S.formats)],['Landing Page',gv('landingPage')||'—']]);
+
+      // S2
+      sectionHead('02','AUDIENCE & TARGETING');
+      addTable([['Target Countries',tv(S.countries)],['Age Range',gv('ageRange')||'—'],['Gender',S.gender==='all'?'All':cap(S.gender)],['Language',gv('language')||'—'],['Interests',tv(S.interests)],['Devices',tv(S.devices)],['Custom / 1P Data',S.customAudience?'Yes':'No']]);
+
+      // S3
+      sectionHead('03','BUDGET & SCHEDULE');
+      const cur=gv('currency'),bv=gv('budget'),sd=gv('startDate'),ed=gv('endDate');
+      let dur='—';if(sd&&ed){const d=Math.max(1,Math.ceil((new Date(ed)-new Date(sd))/864e5));dur=d+' days'}
+      addTable([['Total Budget',cur+' '+(bv||'—')],['Budget Type',cap(S.budgetType)],['Start Date',fmtDate(sd)],['End Date',fmtDate(ed)],['Duration',dur],['Market Split',gv('marketSplit')||'—']]);
+
+      // S4
+      sectionHead('04','KPI TARGETS');
+      const kpis=KPI_MAP[S.objective]||KPI_MAP['Awareness'];
+      const kpiRows=kpis.map((k,i)=>{const v=S.kpis[k.key]||'—';const p=i===0?' (Primary)':i===1?' (Secondary)':' (Optional)';return[k.label+p,v!=='—'?(k.unit==='$'?'$':'')+v+(k.unit&&k.unit!=='$'?' '+k.unit:''):'—']});
+      addTable(kpiRows);
+
+      // S5
+      sectionHead('05','REAL-TIME MONITORING');
+      addTable([['Eskimi API','Programmatic data via REST API — poll every 60s for live metrics'],['Live Dashboard','Auto-refreshing KPI widgets, pacing charts, and audience insights'],['Automated Alerts','Slack, email, or webhook alerts on KPI deviation'],['Scheduled Reports','Daily/weekly/custom CSV or PDF reports delivered to inbox']]);
+
+      // Footer
+      addY(8);
+      doc.setDrawColor(...purple);doc.setLineWidth(0.5);doc.line(M,Y,W-M,Y);
+      addY(5);doc.setFontSize(7);doc.setTextColor(...grey);
+      doc.text('Eskimi DSP — Media Plan',M,Y);
+      doc.text('Generated '+now,W/2,Y,{align:'center'});
+      doc.text('Confidential',W-M,Y,{align:'right'});
+
+      // Page numbers
+      const pages=doc.internal.getNumberOfPages();
+      for(let i=1;i<=pages;i++){doc.setPage(i);doc.setFontSize(7);doc.setTextColor(...grey);doc.text('Page '+i+' of '+pages,W-M,290,{align:'right'})}
+
+      const filename=cn.replace(/[^a-zA-Z0-9 ]/g,'').replace(/ +/g,'_')+'_Media_Plan.pdf';
+      doc.save(filename);
+    }catch(e){console.error(e);alert('PDF generation failed. Please ensure you have an internet connection for the PDF library to load.')}
+
+    btn.classList.remove('generating');
+    btn.innerHTML='<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 17h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Download Media Plan (PDF)';
+  },600);
+}
+
+function printPlan(){window.print()}
+
+init();
+</script>
+</body>
+</html>
